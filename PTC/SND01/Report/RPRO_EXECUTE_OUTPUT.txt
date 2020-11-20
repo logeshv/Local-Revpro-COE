@@ -1,0 +1,24 @@
+
+NAME      TIME_STAMP                                                            
+--------- --------------------------                                            
+REVSND45  03-Nov-2020 01:14                                                     
+
+VIEW_1
+
+View created.
+
+VIEW_2
+
+View created.
+
+VIEW_3
+
+View created.
+
+
+View created.
+
+Report_Script
+
+PL/SQL procedure successfully completed.
+
