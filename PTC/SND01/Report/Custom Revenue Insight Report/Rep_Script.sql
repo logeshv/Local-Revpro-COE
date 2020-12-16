@@ -3,24 +3,28 @@ DECLARE
       CURSOR c_col
       IS
       SELECT column_name ,
-             data_type ,
-             column_name derived_column
+             CASE WHEN column_name = 'PERIOD_NAME'
+                  THEN 'VARCHAR2'
+                  ELSE 'AMOUNT'
+             END data_type ,
+             column_name derived_column,
+             'RPRO_CUST_ACCT_SUMM_V' tbl_name
       FROM  all_tab_columns
       WHERE table_name     = 'RPRO_CUST_ACCT_SUMM_V'
       AND   column_name NOT IN ( SELECT col_name
                                  FROM rpro_label_g
-                                 WHERE tbl_name = 'RPRO_CUST_INSGT'
+                                 WHERE tbl_name = 'RPRO_CUST_ACCT_SUMM_V'
                                 )
       AND   column_name IN ('PERIOD_NAME'
-                           ,'T_ADJ_REVENUE_ACTIVITY'
+                           ,'T_CUM_REVENUE_UTD'
                            ,'T_TOTAL_REVENUE_ACTIVITY'
                            ,'T_TOTAL_REVENUE_ACTIVITY_QTD'
                            ,'T_TOTAL_REVENUE_ACTIVITY_YTD'
-                           ,'F_ADJ_REVENUE_ACTIVITY'
+                           ,'F_CUM_REVENUE_UTD'
                            ,'F_TOTAL_REVENUE_ACTIVITY'
                            ,'F_TOTAL_REVENUE_ACTIVITY_QTD'
                            ,'F_TOTAL_REVENUE_ACTIVITY_YTD'
-                           ,'R_ADJ_REVENUE_ACTIVITY'
+                           ,'R_CUM_REVENUE_UTD'
                            ,'R_TOTAL_REVENUE_ACTIVITY'
                            ,'R_TOTAL_REVENUE_ACTIVITY_QTD'
                            ,'R_TOTAL_REVENUE_ACTIVITY_YTD'
@@ -35,41 +39,44 @@ DECLARE
                            ,'R_UNBILL_ENDING_BALANCE'
                            ,'T_CONTRA_AR_BALANCE'
                            ,'F_CONTRA_AR_BALANCE'
-                           ,'R_CONTRA_AR_BALANCE')
+                           ,'R_CONTRA_AR_BALANCE'
+                           ,'T_ADJ_MTD_REVENUE'    --20201121
+                           ,'T_ADJ_QTD_REVENUE'    --20201121
+                           ,'T_ADJ_YTD_REVENUE'    --20201121
+                           ,'F_ADJ_MTD_REVENUE'    --20201121
+                           ,'F_ADJ_QTD_REVENUE'    --20201121
+                           ,'F_ADJ_YTD_REVENUE'    --20201121
+                           ,'R_ADJ_MTD_REVENUE'    --20201121
+                           ,'R_ADJ_QTD_REVENUE'    --20201121
+                           ,'R_ADJ_YTD_REVENUE'    --20201121
+                           ,'T_CUM_ADJ_REVENUE_UTD'--20201201
+                           ,'F_CUM_ADJ_REVENUE_UTD'--20201201
+                           ,'R_CUM_ADJ_REVENUE_UTD')--20201201
+                           
       UNION
-      SELECT 'CUMULATIVE_BILLING'
-            ,'NUMBER'
-            ,'bld_rec_amt+bld_def_amt'
-      FROM dual
-      UNION
-      SELECT 'ALLOCATABLE_EXT_PRC'
-            ,'NUMBER'
-            ,'alctbl_xt_prc'
-      FROM dual;
-   
+      SELECT column_name ,
+             data_type ,
+             column_name derived_column,
+             'RPRO_RC_LINE_CBILL_V' tbl_name
+      FROM  all_tab_columns
+      WHERE table_name     = 'RPRO_RC_LINE_CBILL_V'
+      AND   column_name NOT IN ( SELECT col_name
+                                 FROM rpro_label_g
+                                 WHERE tbl_name = 'RPRO_RC_LINE_CBILL_V'
+                                );
+
+      
       --Please use different name for each report. Re-use the existing transaction lables where ever possible.
       CURSOR c1
       IS 
          SELECT * FROM (
          SELECT rl.*,'CUST_RV_INSGT' alias
          FROM  rpro_label_g rl
-         WHERE tbl_name    = 'RPRO_CUST_INSGT'
-         --AND   col_name    IN (SELECT column_name
-         --                      FROM   all_tab_columns--user_tab_columns
-         --                      WHERE  table_name = 'RPRO_CUST_ACCT_SUMM_V')
-                               
+         WHERE tbl_name    = 'RPRO_CUST_ACCT_SUMM_V'      
          UNION ALL
-         SELECT rl.*
-               ,rrp.alias
-         FROM rpro_label_g     rl 
-             ,rpro_rep_field_g rrp 
-             ,rpro_rep_g       rr
-         WHERE 1          =1
-         AND   rr.rep_name  = 'RC Rollforward Report'
-         AND   rl.tbl_name  = 'RPRO_RC_LINE'
-         AND   rl.col_name IN ('RC_ID','ATR1','ATR3','BUSINESS_UNIT','ATR8','DOC_LINE_ID','DOC_NUM','ATR9','DOC_DATE','START_DATE','END_DATE')
-         AND   rr.id        = rrp.rep_id
-         AND   rrp.label_id = rl.id )
+         SELECT rl.*,'rrlc' alias
+         FROM  rpro_label_g rl
+         WHERE tbl_name    = 'RPRO_RC_LINE_CBILL_V' )
          ORDER BY tbl_name desc;
    
       CURSOR c2
@@ -127,7 +134,7 @@ DECLARE
          WHERE       id = l_report_id;
          
          DELETE FROM rpro_label_g
-         WHERE       tbl_name    = l_tbl_name;
+         WHERE       tbl_name    IN ('RPRO_CUST_ACCT_SUMM_V','RPRO_RC_LINE_CBILL_V');
          
          COMMIT;
       EXCEPTION WHEN OTHERS
@@ -200,16 +207,11 @@ DECLARE
          LOOP
             l_rpro_label_g.id             := rpro_utility_pkg.generate_id('RPRO_LABEL_ID_S',rpro_utility_pkg.g_client_id);
             l_rpro_label_g.col_name       := rec_col.column_name;
-            l_rpro_label_g.tbl_name       := l_tbl_name;
+            l_rpro_label_g.tbl_name       := rec_col.tbl_name;
             --l_rpro_label_g.alias          := 'CUST_RV_INSGT';
             l_rpro_label_g.label          := REPLACE (INITCAP (rec_col.column_name), '_', ' ');
             l_rpro_label_g.indicators     := rpro_label_pkg.g_set_default_ind;
-            l_rpro_label_g.col_type       := CASE WHEN  rec_col.column_name IN ('CUMULATIVE_BILLING' ,'ALLOCATABLE_EXT_PRC')
-                                                  THEN  'NUMBER'
-                                                  WHEN  rec_col.column_name = 'PERIOD_NAME' 
-                                                  THEN 'VARCHAR2' 
-                                                  ELSE 'AMOUNT' 
-                                             END;
+            l_rpro_label_g.col_type       := rec_col.data_type;
             l_rpro_label_g.crtd_dt        := SYSDATE;
             l_rpro_label_g.crtd_by        := rpro_utility_pkg.g_user;
             l_rpro_label_g.updt_dt        := SYSDATE;
@@ -232,18 +234,9 @@ DECLARE
             l_rpro_rep_field_g.rep_id       := l_rep_seq;
             l_rpro_rep_field_g.label_id     := rec.id;
             
-            l_rpro_rep_field_g.fld_name     := CASE WHEN rec.derived_column IS NOT NULL  AND rec.alias  = 'CUST_RV_INSGT'
-                                                    THEN rec.derived_column 
-                                                    WHEN rec.derived_column IS NOT NULL  AND rec.alias != 'CUST_RV_INSGT'
-                                                    THEN REPLACE(rec.derived_column,'indicators' ,lower(rec.alias)||'.'||'indicators')  
-                                                    ELSE rec.col_name
-                                               END;
+            l_rpro_rep_field_g.fld_name     := rec.derived_column;
            
-            l_rpro_rep_field_g.alias        :=  CASE WHEN rec.col_name IN ('CUMULATIVE_BILLING' ,'ALLOCATABLE_EXT_PRC')
-                                                THEN NULL
-                                                ELSE
-                                                   rec.alias
-                                                END;
+            l_rpro_rep_field_g.alias        := rec.alias;
             l_rpro_rep_field_g.type         := CASE WHEN rec.col_name = 'PERIOD_NAME' THEN 'LOV' ELSE NULL END;
             l_rpro_rep_field_g.crtd_by      := rpro_utility_pkg.g_user;
             l_rpro_rep_field_g.crtd_dt      := SYSDATE;

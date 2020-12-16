@@ -1,0 +1,1 @@
+CREATE INDEX RPRO_CUST_BILL_IDX_1 ON rpro_Rc_bill_g(rc_id,line_id,type);
