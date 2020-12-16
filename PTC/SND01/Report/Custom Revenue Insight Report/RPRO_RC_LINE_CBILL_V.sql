@@ -29,8 +29,8 @@ SELECT /* LEADING(rrl,rrb)*/
        ,rrb.f_cumm_bill_amt 
 FROM rpro_rc_line_g rrl ,
      bill rrb
-WHERE rrb.line_id = rrl.id
-AND   rrb.rc_id   = rrl.rc_id
-AND   rrl.rc_id  != 0;
+WHERE rrb.line_id(+) = rrl.id
+AND   rrb.rc_id(+)   = rrl.rc_id
+AND   rrl.rc_id     != 0;
 
 /
