@@ -2,7 +2,7 @@
 README FOR PATCH INSTALLATION 
 ==============================
 
-Patch Creation Date          : 03-NOV-2020
+Patch Creation Date          : 21-NOV-2020
 
 Case Number                  : 
 
@@ -23,10 +23,12 @@ Execute the below files in the given order.
     
        @RPRO_EXECUTE.sql
        
-        1. VIEW_1.sql                          CUSTOM RI ACCT SUMM VIEW
-        2. VIEW_2.sql                          CUSTOM ACCT SUMM VIEW
-        3. VIEW_3.sql                          REPORT BASE VIEW
-        4. Report_Script.sql                   CUSTOM REPORT SCRIPT
+        1. RPRO_RC_LINE_CBILL_V.sql            CUSTOM BILL AND LINE VIEW
+        2. RPRO_CUST_RI_LN_ACCT_SUMM_V.sql     RPRO_CUST_RI_LN_ACCT_SUMM_V                     
+        3. RPRO_CUST_ACCT_SUMM_V               CUSTOM ACCT SUMM VIEW
+        3. RPRO_RI_CUST_INSIGHT_V.sql          REPORT BASE VIEW
+        4. Rep_Script.sql                      CUSTOM REPORT SCRIPT
+        5. RPRO_CUST_BILL_IDX_1.sql            CUSTOM INDEX FOR PERFORMANCE
 ================================================================================
 NOTE: PLEASE TAKE THE BACKUP OF THE EXISTING OBJECTS BEFORE DEPLOYING THE PATCH.    
       [NOT APPLICABLE IN CASE OF DATA FIX].
