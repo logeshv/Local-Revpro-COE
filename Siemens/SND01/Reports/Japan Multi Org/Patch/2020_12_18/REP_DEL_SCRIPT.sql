@@ -1,0 +1,55 @@
+DECLARE
+   V_REPORT_ID       NUMBER;
+   V_REP_LAYOUT_ID   NUMBER;
+BEGIN
+   BEGIN
+      SELECT id
+      INTO  v_report_id
+      FROM RPRO_REP_G
+      WHERE REP_NAME = 'Siemens Waterfall Report QTR'
+      AND   ROWNUM = 1;
+   EXCEPTION
+   WHEN OTHERS THEN
+      RETURN;
+   END;
+   FOR I IN (SELECT ID
+               FROM RPRO_RP_LAYOUT_G
+              WHERE REP_ID = V_REPORT_ID)
+   LOOP
+      IF I.ID IS NOT NULL
+      THEN
+         DELETE FROM RPRO_LAYOUT_FIELD_G
+               WHERE LAYOUT_ID = I.ID;
+
+         DELETE FROM RPRO_REP_FILTER_G
+               WHERE LAYOUT_ID = I.ID;
+
+         COMMIT;
+      END IF;
+   END LOOP;
+
+   IF V_REPORT_ID IS NOT NULL
+   THEN
+      DELETE FROM RPRO_REP_FIELD_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_RP_LAYOUT_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_REP_ACCESS_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_REP_G
+            WHERE ID = V_REPORT_ID;
+
+      COMMIT;
+   END IF;
+
+   -- Added on Nov 5
+   DELETE FROM RPRO_LABEL_G
+         WHERE TBL_NAME = 'SIEM_JAPAN_WF';
+
+   COMMIT;
+END;
+
+/
