@@ -1,0 +1,102 @@
+DECLARE
+   V_REPORT_ID       NUMBER;
+   V_REP_LAYOUT_ID   NUMBER;
+BEGIN
+BEGIN
+   SELECT ID
+     INTO V_REPORT_ID
+     FROM RPRO_REP_G
+    WHERE REP_NAME = 'Mendix Waterfall Report';
+
+   FOR I IN (SELECT ID
+               FROM RPRO_RP_LAYOUT_G
+              WHERE REP_ID = V_REPORT_ID)
+   LOOP
+      IF I.ID IS NOT NULL
+      THEN
+         DELETE FROM RPRO_LAYOUT_FIELD_G
+               WHERE LAYOUT_ID = I.ID;
+
+         DELETE FROM RPRO_REP_FILTER_G
+               WHERE LAYOUT_ID = I.ID;
+
+         COMMIT;
+      END IF;
+   END LOOP;
+
+   IF V_REPORT_ID IS NOT NULL
+   THEN
+      DELETE FROM RPRO_REP_FIELD_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_RP_LAYOUT_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_REP_ACCESS_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_REP_G
+            WHERE ID = V_REPORT_ID;
+
+      COMMIT;
+   END IF;
+
+   -- Added on Nov 5
+   DELETE FROM RPRO_LABEL_G
+         WHERE TBL_NAME = 'siem_wf_sumy';
+
+   COMMIT;
+END;
+BEGIN
+   SELECT ID
+     INTO V_REPORT_ID
+     FROM RPRO_REP_G
+    WHERE REP_NAME = 'Mendix Waterfall Report';
+
+   FOR I IN (SELECT ID
+               FROM RPRO_RP_LAYOUT_G
+              WHERE REP_ID = V_REPORT_ID)
+   LOOP
+      IF I.ID IS NOT NULL
+      THEN
+         DELETE FROM RPRO_LAYOUT_FIELD_G
+               WHERE LAYOUT_ID = I.ID;
+
+         DELETE FROM RPRO_REP_FILTER_G
+               WHERE LAYOUT_ID = I.ID;
+
+         COMMIT;
+      END IF;
+   END LOOP;
+
+   IF V_REPORT_ID IS NOT NULL
+   THEN
+      DELETE FROM RPRO_REP_FIELD_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_RP_LAYOUT_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_REP_ACCESS_G
+            WHERE REP_ID = V_REPORT_ID;
+
+      DELETE FROM RPRO_REP_G
+            WHERE ID = V_REPORT_ID;
+
+      COMMIT;
+   END IF;
+
+   -- Added on Nov 5
+   DELETE FROM RPRO_LABEL_G
+         WHERE TBL_NAME = 'siem_wf_sumy';
+
+   COMMIT;
+END;
+EXCEPTION
+   WHEN OTHERS
+   THEN
+      NULL;
+END;
+
+
+/
