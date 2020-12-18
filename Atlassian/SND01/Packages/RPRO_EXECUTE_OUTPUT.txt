@@ -1,0 +1,38 @@
+
+NAME      TIME_STAMP                                                            
+--------- --------------------------                                            
+REVSND39  02-Dec-2020 02:58                                                     
+
+rpro_cust_bill_idx1
+CREATE INDEX rpro_cust_bill_idx1 ON rpro_rc_bill_g(rc_id,atr41,atr24,atr55)
+             *
+ERROR at line 1:
+ORA-00955: name is already used by an existing object 
+
+
+rpro_cust_bill_idx2
+CREATE INDEX rpro_cust_bill_idx2 ON rpro_rc_bill_g(rc_id,atr41,atr24,atr55,doc_num,type)
+             *
+ERROR at line 1:
+ORA-00955: name is already used by an existing object 
+
+
+rpro_cust_bill_idx3
+CREATE INDEX rpro_cust_bill_idx3 ON rpro_rc_line_g(rc_id,atr41,atr24,atr55)
+             *
+ERROR at line 1:
+ORA-00955: name is already used by an existing object 
+
+
+RPRO_ATL_CUSTOM_PKG
+
+Package created.
+
+RPRO_ATL_CUSTOM_PKG
+
+Package body created.
+
+PREPROC_RCCOLLECT
+
+PL/SQL procedure successfully completed.
+
