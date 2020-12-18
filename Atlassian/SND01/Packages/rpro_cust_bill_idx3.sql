@@ -1,0 +1,1 @@
+CREATE INDEX rpro_cust_bill_idx3 ON rpro_rc_line_g(rc_id,atr41,atr24,atr55);
