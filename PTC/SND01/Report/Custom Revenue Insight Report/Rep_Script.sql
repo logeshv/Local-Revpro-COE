@@ -51,8 +51,9 @@ DECLARE
                            ,'R_ADJ_YTD_REVENUE'    --20201121
                            ,'T_CUM_ADJ_REVENUE_UTD'--20201201
                            ,'F_CUM_ADJ_REVENUE_UTD'--20201201
-                           ,'R_CUM_ADJ_REVENUE_UTD')--20201201
-                           
+                           ,'R_CUM_ADJ_REVENUE_UTD'--20201201
+                           ,'T_CUM_BILLING_UTD'
+                           ,'F_CUM_BILLING_UTD')
       UNION
       SELECT column_name ,
              data_type ,
