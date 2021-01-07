@@ -1,0 +1,44 @@
+
+NAME      TIME_STAMP                                                            
+--------- --------------------------                                            
+REVSND45  07-Jan-2021 05:34                                                     
+
+RPRO_RC_LINE_CBILL_V
+
+View created.
+
+
+View created.
+
+RPRO_CUST_RI_LN_ACCT_SUMM_V
+
+View created.
+
+
+View created.
+
+RPRO_CUST_ACCT_SUMM_V
+
+View created.
+
+
+View created.
+
+RPRO_RI_CUST_INSIGHT_V
+
+View created.
+
+
+View created.
+
+Rep_Script
+
+PL/SQL procedure successfully completed.
+
+RPRO_CUST_BILL_IDX_1
+CREATE INDEX RPRO_CUST_BILL_IDX_1 ON rpro_Rc_bill_g(rc_id,line_id,type)
+             *
+ERROR at line 1:
+ORA-00955: name is already used by an existing object 
+
+

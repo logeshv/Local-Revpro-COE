@@ -230,19 +230,19 @@ AS
     SUM (
     CASE
       WHEN acg.ID IN ('Z','U')
-      THEN summ.T_UNBL_AT_UT
+      THEN summ.T_UNBL_UTD
       ELSE 0
     END) AS T_unbill_ending_balance ,
     SUM (
     CASE
       WHEN acg.ID IN ('Z','U')
-      THEN summ.F_UNBL_AT_UT
+      THEN summ.F_UNBL_UTD
       ELSE 0
     END) AS F_unbill_ending_balance ,
     SUM (
     CASE
       WHEN acg.ID IN ('Z','U')
-      THEN summ.R_UNBL_AT_UT
+      THEN summ.R_UNBL_UTD
       ELSE 0
     END) AS R_unbill_ending_balance ,
     SUM (
@@ -262,7 +262,21 @@ AS
       WHEN acg.ID = ('T')
       THEN summ.R_CONTRA_RL_UT
       ELSE 0
-    END) AS R_Contra_AR_balance
+    END) AS R_Contra_AR_balance ,
+    SUM (
+    CASE
+      WHEN acg.acct_group IN ('DREV', 'EDREV')
+      --AND acg.pl_flag      ='Y'
+      THEN summ.T_CUM_BILL_UTD
+      ELSE 0
+    END) AS T_Cum_Billing_UTD,
+    SUM (
+    CASE
+      WHEN acg.acct_group IN ('DREV', 'EDREV')
+      --AND acg.pl_flag      ='Y'
+      THEN summ.F_CUM_BILL_UTD
+      ELSE 0
+    END) AS F_Cum_Billing_UTD
   FROM rpro_cust_ri_ln_acct_summ_v summ ,
     rpro_ri_acct_grp_v acg
   WHERE summ.acct_type_id = acg.ID

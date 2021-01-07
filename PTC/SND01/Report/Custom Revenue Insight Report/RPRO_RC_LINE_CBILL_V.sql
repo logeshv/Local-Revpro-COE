@@ -25,8 +25,6 @@ SELECT /* LEADING(rrl,rrb)*/
        ,rrl.net_sll_prc               t_transaction_price 
        ,rrl.net_sll_prc*rrl.f_ex_rate f_transaction_price 
        ,rrl.net_sll_prc*rrl.g_ex_rate r_transaction_price 
-       ,rrb.cumm_bill_amt
-       ,rrb.f_cumm_bill_amt 
 FROM rpro_rc_line_g rrl ,
      bill rrb
 WHERE rrb.line_id(+) = rrl.id
