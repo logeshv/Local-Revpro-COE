@@ -43,6 +43,8 @@ AS
    |    15-OCT-19  Soundarya         3.0      20191015 fix on OOH date issue and NO schedule 0 dollar   |
    |    07-DEC-20  Manisundaram      3.1      Multi Org Changes MS20201207                              |
    |    11-DEC-20  Logesh            3.2      Logic to handle jpn current qtr change 20201211           |
+   |    15-MAR-21  Logesh            3.3      Fix to qtr waterfall rep for old periods  LV20210315      |
+   |    18-MAR-21  Logesh            3.4      Commented RC_ID for link/delink LV20210318                |
    +===================================================================================================*/
 
    -------------------------
@@ -1431,8 +1433,8 @@ AS
            FORALL i IN t_batch_data.FIRST..t_batch_data.LAST
            UPDATE rpro_rc_line_g
            SET    num10 = t_batch_data(i).no_cum_alctd_amt
-           WHERE  id    = t_batch_data(i).id
-           AND    rc_id = t_batch_data(i).rc_id;
+           WHERE  id    = t_batch_data(i).id;
+           --AND    rc_id = t_batch_data(i).rc_id;  --LV20210318
 
            write_log('Log : Total schedules count l_rc_schd.COUNT~'||l_rc_schd.COUNT);
            sync_rc_schd_data ( p_rc_schd_data => l_rc_schd);
@@ -1482,7 +1484,8 @@ AS
         SELECT SUM(amount)
         INTO   l_no_amt
         FROM   rpro_cust_rc_schd
-        WHERE  rc_id   = p_ooh_data.rc_id
+        WHERE  1=1 
+    --  AND    rc_id   = p_ooh_data.rc_id
         AND    line_id = p_ooh_data.line_id
         AND    prd_id  = l_prd_tab (l_ooh_prd_indx).id
         AND    sec_atr_val = p_ooh_data.sec_atr_val;      --MS20201207
@@ -1492,7 +1495,8 @@ AS
         SELECT SUM(amount)
         INTO   l_act_amt
         FROM   rpro_rc_schd_g
-        WHERE  rc_id   = p_ooh_data.rc_id
+        WHERE  1=1
+      --AND    rc_id   = p_ooh_data.rc_id
         AND    line_id = p_ooh_data.line_id
         AND    ( (     rpro_rc_schd_pkg.get_schd_type_flag(indicators)         =  'R'
                   AND  rpro_rc_schd_pkg.get_initial_entry_flag(indicators)     <> 'Y')
@@ -1615,13 +1619,14 @@ AS
              NVL2(alctd_xt_prc,alctd_xt_prc,net_sll_prc) ) no_cum_alctd_amt  --Deriving Net revenue
      FROM   rpro_rc_line_g rrl
      WHERE  1=1
+     AND rrl.rc_id NOT IN (0,1)
      AND atr2           IS NOT NULL   --20190802  
      AND sec_atr_val    = p_sec_atr_value  --MS20201207
      AND date3          IS NOT NULL   --20190906
      AND EXISTS ( SELECT 1                                 --20190813  Check if any NO lines exist, then proceed
                   FROM   rpro_cust_rc_schd rcrs1
                   WHERE  1 = 1
-                  AND    rrl.rc_id   = rcrs1.rc_id
+                --AND    rrl.rc_id   = rcrs1.rc_id
                   AND    rrl.id      = rcrs1.line_id
                 )
      --AND ext_sll_prc <> 0             --20190802
@@ -1630,13 +1635,13 @@ AS
                   FROM  rpro_rc_schd_g rrs
                   WHERE rrs.prd_id                                          = p_run_prd_id
                   AND   rpro_rc_schd_pkg.get_schd_type_flag(rrs.indicators) = 'R'
-                  AND   rrl.rc_id                                           = rrs.rc_id
+                --AND   rrl.rc_id                                           = rrs.rc_id
                   AND   rrl.id                                              = rrs.line_id )
        OR EXISTS --20190802
                  (SELECT 1                           --check whether any NO revenue schedules exist for current period
                   FROM  rpro_cust_rc_schd rcrs
                   WHERE rcrs.prd_id = p_run_prd_id
-                  AND   rrl.rc_id   = rcrs.rc_id
+                --AND   rrl.rc_id   = rcrs.rc_id
                   AND   rrl.id      = rcrs.line_id
                  )
         );
@@ -1711,29 +1716,30 @@ AS
                                  WHERE  1=1
                                  AND    (   (rpro_rc_schd_pkg.get_schd_type_flag(indicators) = 'R' AND rpro_rc_schd_pkg.get_initial_entry_flag(indicators)    <>'Y')
                                          OR (rpro_rc_schd_pkg.get_schd_type_flag(indicators) = 'A' AND rpro_rc_schd_pkg.get_initial_rep_entry_flag(indicators)<>'Y'))
-                                 AND    rrs.rc_id      = :1
-                                 AND    rrs.line_id    = :2
-                                  AND    rrs.sec_atr_val = :3)';  --MS20201207
+                               --AND    rrs.rc_id      = :1
+                                 AND    rrs.line_id    = :1
+                                  AND    rrs.sec_atr_val = :2)';  --MS20201207
            
                  write_log('Log: Inserting Revenue Schedules  l_sql_stmt:'||l_sql_stmt);
            
                  /*Inserting Revenue schedules*/
-                 EXECUTE IMMEDIATE l_sql_stmt USING   l_rcline(i).rc_id
-                                                    , l_rcline(i).line_id
-                                                    , l_rcline(i).sec_atr_val;   --MS20201207
+                 EXECUTE IMMEDIATE l_sql_stmt USING   --l_rcline(i).rc_id,
+                                                    l_rcline(i).line_id
+                                                  , l_rcline(i).sec_atr_val;   --MS20201207
            
                  l_sql_stmt := 'INSERT INTO ' || g_tab_name ||
                                ' SELECT   *
                                  FROM   rpro_cust_rc_schd rcrs
-                                 WHERE  rcrs.rc_id      = :1
-                                 AND    rcrs.line_id    = :2
-                                 AND    rcrs.sec_atr_val = :3 '; --MS20201207
+                                 WHERE  1=1
+                               --AND    rcrs.rc_id      = :1
+                                 AND    rcrs.line_id    = :1
+                                 AND    rcrs.sec_atr_val = :2 '; --MS20201207
            
                  write_log('Log: Inserting NO Revenue Schedules :l_sql_stmt:'||l_sql_stmt);
            
                  /*Inserting NO Revenue schedules*/
-                 EXECUTE IMMEDIATE l_sql_stmt USING   l_rcline(i).rc_id
-                                                    , l_rcline(i).line_id
+                 EXECUTE IMMEDIATE l_sql_stmt USING   --l_rcline(i).rc_id,
+                                                      l_rcline(i).line_id
                                                     , l_rcline(i).sec_atr_val;
                  write_log('Log: NO schedules count :'||SQL%ROWCOUNT);
            
@@ -2071,34 +2077,37 @@ AS
     /*Creating Snapshot for the given period*/     --MS20201207
     create_snapshot_table(l_run_prd_id,l_open_period_id,l_sec_atr_val);   
     
-    BEGIN  --20201211 Added logic to handle only for current qurater should not consider the closed periods.
-       l_prd_query :=  'UPDATE '||g_tab_name|| q'( tmp
-                       SET
-                         (
-                           je_batch_name,
-                           updt_prd_id
-                         )
-                         =
-                         (SELECT period_year||'Q'||qtr_num 
-                                ,CASE WHEN tmp.prd_id >= )'||l_open_period_id||q'(
-                                      THEN period_year||qtr_num
-                                      ELSE '0'
-                                 END
-                          FROM rpro_calendar_g
-                          WHERE id= tmp.prd_id
-                         )
-                       WHERE 1=1
-                       AND EXISTS
-                         (SELECT 1 FROM rpro_calendar_g rc WHERE rc.id = tmp.prd_id
-                         )
-                         )' ;
-       write_log('Log: l_prd_query :'||l_prd_query);
-       EXECUTE IMMEDIATE l_prd_query;
-       
-    EXCEPTION
-    WHEN OTHERS THEN
-       write_error('Error while updating quarter details');
-    END;
+    IF l_run_prd_id = l_open_period_id  --LV20210315
+    THEN
+       BEGIN  --20201211 Added logic to handle only for current qurater should not consider the closed periods.
+          l_prd_query :=  'UPDATE '||g_tab_name|| q'( tmp
+                          SET
+                            (
+                              je_batch_name,
+                              updt_prd_id
+                            )
+                            =
+                            (SELECT period_year||'Q'||qtr_num 
+                                   ,CASE WHEN tmp.prd_id >= )'||l_open_period_id||q'(
+                                         THEN period_year||qtr_num
+                                         ELSE '0'
+                                    END
+                             FROM rpro_calendar_g
+                             WHERE id= tmp.prd_id
+                            )
+                          WHERE 1=1
+                          AND EXISTS
+                            (SELECT 1 FROM rpro_calendar_g rc WHERE rc.id = tmp.prd_id
+                            )
+                            )' ;
+          write_log('Log: l_prd_query :'||l_prd_query);
+          EXECUTE IMMEDIATE l_prd_query;
+          
+       EXCEPTION
+       WHEN OTHERS THEN
+          write_error('Error while updating quarter details');
+       END;
+    END IF;
     
     /*Creating Snapshot for the given period*/
     l_stmt2           := q'(SELECT DECODE(cust.atr3,NULL,'REV','NO','NO','OOH','OOH') "Rev Type",SIEM_WF_JPN.f_ex_rate "F Ex Rate",SIEM_WF_JPN.g_ex_rate "G Ex Rate",)';--                                                                                                                                  --20140530
