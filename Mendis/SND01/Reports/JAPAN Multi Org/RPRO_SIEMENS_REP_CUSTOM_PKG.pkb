@@ -1148,6 +1148,7 @@ AS
            ,rrl.curr
            ,rrl.f_ex_rate
            ,rrl.g_ex_rate
+           ,rrl.num11
            ,CASE WHEN NVL(rrl.atr13, 'N/A') IN( 'N/A','NA')
                  THEN
                     rrl.doc_date
@@ -1201,9 +1202,12 @@ AS
                             INDEX BY BINARY_INTEGER;
 
      TYPE ooh_indx_tab IS TABLE OF BINARY_INTEGER
-                          INDEX BY BINARY_INTEGER;
+                       INDEX BY BINARY_INTEGER;
+     TYPE tab_line_id IS TABLE OF VARCHAR2(50)
+                      INDEX BY BINARY_INTEGER;
 
      l_ooh_indx_tab            ooh_indx_tab;
+     l_line_id_tab             tab_line_id;
      l_ooh_schd_data           all_tab_pkg.rc_schd_data_tab;
      l_ooh_idx                 NUMBER;
      l_cnt                     NUMBER := 0;
@@ -1225,6 +1229,7 @@ AS
      l_no_end_Date             DATE;
      l_prd_tab                 rpro_utility_pkg.rc_calender_tab;
      l_cum_alct_amt            NUMBER := 0;
+     l_updt_dt                 DATE;
      l_revision_prd            VARCHAR2(1) := 'N';
      l_suspend_resume_flag     VARCHAR2(250);
      l_cust_schd_flag          VARCHAR2(250);
@@ -1233,7 +1238,34 @@ AS
   BEGIN
      rpro_utility_pkg.set_revpro_context;
      write_log('Log: Begin no_rev_schd_generation : p_batch_id '||p_batch_id);
-
+     --MS 20210203 Starts
+     SELECT MAX(requested_start_date) 
+     INTO l_updt_dt 
+     FROM rpro_schd_prog 
+     WHERE prog_id= (SELECT id 
+                     FROM rpro_prog_head 
+                     WHERE upper(name) = UPPER('Revpro3.0 Custom Summarize'))
+     AND substr(indicators,3,1)='C';
+     
+     SELECT line.id 
+     BULK COLLECT INTO l_line_id_tab
+     FROM rpro_rc_line_g line
+         ,rpro_cust_rc_schd cust 
+     WHERE trunc(line.updt_dt) >= trunc(l_updt_dt) 
+     AND cust.rc_id != line.rc_id 
+     AND cust.line_id = line.id 
+     AND line.rc_id !=0;
+     write_log('Modified Line Count:'||l_line_id_tab.COUNT);
+     IF l_line_id_tab.COUNT > 0
+     THEN
+        FORALL i IN 1 .. l_line_id_tab.COUNT
+        UPDATE rpro_rc_line 
+        SET num10 = NULL
+        WHERE id = l_line_id_tab(i);
+     END IF;
+     COMMIT;
+     --MS 20210203 ENDS
+     
      FOR r_prd IN (SELECT rc.start_date  open_prd_st_date    --20190812
                          ,rc.end_date    open_prd_ed_date
                          ,rc.id          open_prd_id
@@ -1339,7 +1371,7 @@ AS
                  CONTINUE;
               END IF;
               /*END Suspend and resume logic*/
-
+             ---MS 20210203
               BEGIN
                  SELECT rc_ver
                  INTO   l_rc_ver
