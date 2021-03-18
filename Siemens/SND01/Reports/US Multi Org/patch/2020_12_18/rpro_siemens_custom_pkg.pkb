@@ -42,6 +42,7 @@ AS
    |    14-OCT-19  Sreeni            2.9      Added extra condition for suspend-Resume 20191014         |
    |    15-OCT-19  Soundarya         3.0      20191015 fix on OOH date issue and NO schedule 0 dollar   |
    |    07-DEC-20  Manisundaram      3.1      Multi Org Changes MS20201207   
+   |    03-FEB-21  Manisundaram      3.2      To handle Delink/Link Scenario.
    +===================================================================================================*/
 
    -------------------------
@@ -1145,6 +1146,7 @@ AS
            ,rrl.curr
            ,rrl.f_ex_rate
            ,rrl.g_ex_rate
+           ,rrl.num11
            ,CASE WHEN NVL(rrl.atr13, 'N/A') IN( 'N/A','NA')
                  THEN
                     rrl.doc_date
@@ -1195,19 +1197,21 @@ AS
      AND   rrl.batch_id       = NVL(p_batch_id,rrl.batch_id);
 
      TYPE tab_batch_data IS TABLE OF c_batch_data%ROWTYPE
-                            INDEX BY BINARY_INTEGER;
+                         INDEX BY BINARY_INTEGER;
 
      TYPE ooh_indx_tab IS TABLE OF BINARY_INTEGER
-                          INDEX BY BINARY_INTEGER;
+                       INDEX BY BINARY_INTEGER;
+     TYPE tab_line_id IS TABLE OF VARCHAR2(50)
+                      INDEX BY BINARY_INTEGER;
 
      l_ooh_indx_tab            ooh_indx_tab;
+     l_line_id_tab             tab_line_id;
      l_ooh_schd_data           all_tab_pkg.rc_schd_data_tab;
      l_ooh_idx                 NUMBER;
      l_cnt                     NUMBER := 0;
      l_act_amt                 NUMBER := 0;
      l_no_amt                  NUMBER := 0;
      l_ooh_amt                 NUMBER := 0;
-
      l_open_prd_st_date        DATE;
      l_open_prd_ed_date        DATE;
      l_open_prd_id             NUMBER;
@@ -1222,6 +1226,7 @@ AS
      l_no_end_Date             DATE;
      l_prd_tab                 rpro_utility_pkg.rc_calender_tab;
      l_cum_alct_amt            NUMBER := 0;
+     l_updt_dt                 DATE;
      l_revision_prd            VARCHAR2(1) := 'N';
      l_suspend_resume_flag     VARCHAR2(250);
      l_cust_schd_flag          VARCHAR2(250);
@@ -1230,7 +1235,34 @@ AS
   BEGIN
      rpro_utility_pkg.set_revpro_context;
      write_log('Log: Begin no_rev_schd_generation : p_batch_id '||p_batch_id);
-
+     --MS 20210203 Starts
+     SELECT MAX(requested_start_date) 
+     INTO l_updt_dt 
+     FROM rpro_schd_prog 
+     WHERE prog_id= (SELECT id 
+                     FROM rpro_prog_head 
+                     WHERE upper(name) = UPPER('Revpro3.0 Custom Summarize'))
+     AND substr(indicators,3,1)='C';
+     
+     SELECT line.id 
+     BULK COLLECT INTO l_line_id_tab
+     FROM rpro_rc_line_g line
+         ,rpro_cust_rc_schd cust 
+     WHERE trunc(line.updt_dt) >= trunc(l_updt_dt) 
+     AND cust.rc_id != line.rc_id 
+     AND cust.line_id = line.id 
+     AND line.rc_id !=0;
+     write_log('Modified Line Count:'||l_line_id_tab.COUNT);
+     IF l_line_id_tab.COUNT > 0
+     THEN
+        FORALL i IN 1 .. l_line_id_tab.COUNT
+        UPDATE rpro_rc_line 
+        SET num10 = NULL
+        WHERE id = l_line_id_tab(i);
+     END IF;
+     COMMIT;
+     --MS 20210203 ENDS
+     
      FOR r_prd IN (SELECT rc.start_date  open_prd_st_date    --20190812
                          ,rc.end_date    open_prd_ed_date
                          ,rc.id          open_prd_id
@@ -1336,7 +1368,7 @@ AS
                  CONTINUE;
               END IF;
               /*END Suspend and resume logic*/
-
+             ---MS 20210203
               BEGIN
                  SELECT rc_ver
                  INTO   l_rc_ver
@@ -1357,11 +1389,13 @@ AS
               INTO   l_prev_schd_amt
               FROM   rpro_cust_rc_schd
               WHERE  line_id     = t_batch_data(rec).id
+            --AND    rc_id       = t_batch_data(rec).rc_id --20210302
               AND    sec_atr_val = r_prd.sec_atr_val     --20190813  Org based changes
               AND    prd_id      < r_prd.open_prd_id;
 
               /*Deleting the future existing schedules*/
-              DELETE FROM rpro_cust_rc_schd
+
+             DELETE FROM rpro_cust_rc_schd
               WHERE  line_id     = t_batch_data(rec).id
               AND    sec_atr_val = r_prd.sec_atr_val     --20190813  Org based changes
               AND    prd_id     >= r_prd.open_prd_id;
@@ -1430,8 +1464,8 @@ AS
            FORALL i IN t_batch_data.FIRST..t_batch_data.LAST
            UPDATE rpro_rc_line_g
            SET    num10 = t_batch_data(i).no_cum_alctd_amt
-           WHERE  id    = t_batch_data(i).id
-           AND    rc_id = t_batch_data(i).rc_id;
+           WHERE  id    = t_batch_data(i).id;
+           --AND    rc_id = t_batch_data(i).rc_id;
 
            write_log('Log : Total schedules count l_rc_schd.COUNT~'||l_rc_schd.COUNT);
            sync_rc_schd_data ( p_rc_schd_data => l_rc_schd);
@@ -1481,7 +1515,8 @@ AS
         SELECT SUM(amount)
         INTO   l_no_amt
         FROM   rpro_cust_rc_schd
-        WHERE  rc_id   = p_ooh_data.rc_id
+        WHERE  1=1
+      --AND rc_id   = p_ooh_data.rc_id 20210203
         AND    line_id = p_ooh_data.line_id
         AND    prd_id  = l_prd_tab (l_ooh_prd_indx).id
         AND    sec_atr_val = p_ooh_data.sec_atr_val;      --MS20201207
@@ -1491,7 +1526,8 @@ AS
         SELECT SUM(amount)
         INTO   l_act_amt
         FROM   rpro_rc_schd_g
-        WHERE  rc_id   = p_ooh_data.rc_id
+        WHERE  1=1
+      --AND rc_id   = p_ooh_data.rc_id
         AND    line_id = p_ooh_data.line_id
         AND    ( (     rpro_rc_schd_pkg.get_schd_type_flag(indicators)         =  'R'
                   AND  rpro_rc_schd_pkg.get_initial_entry_flag(indicators)     <> 'Y')
@@ -1614,13 +1650,14 @@ AS
              NVL2(alctd_xt_prc,alctd_xt_prc,net_sll_prc) ) no_cum_alctd_amt  --Deriving Net revenue
      FROM   rpro_rc_line_g rrl
      WHERE  1=1
+	 AND rrl.rc_id NOT IN (0,1)
      AND atr2           IS NOT NULL   --20190802  
       AND sec_atr_val    = p_sec_atr_value  --MS20201207
      AND date3          IS NOT NULL   --20190906
      AND EXISTS ( SELECT 1                                 --20190813  Check if any NO lines exist, then proceed
                   FROM   rpro_cust_rc_schd rcrs1
                   WHERE  1 = 1
-                  AND    rrl.rc_id   = rcrs1.rc_id
+                  --AND    rrl.rc_id   = rcrs1.rc_id
                   AND    rrl.id      = rcrs1.line_id
                 )
      --AND ext_sll_prc <> 0             --20190802
@@ -1629,13 +1666,13 @@ AS
                   FROM  rpro_rc_schd_g rrs
                   WHERE rrs.prd_id                                          = p_run_prd_id
                   AND   rpro_rc_schd_pkg.get_schd_type_flag(rrs.indicators) = 'R'
-                  AND   rrl.rc_id                                           = rrs.rc_id
+                --AND   rrl.rc_id                                           = rrs.rc_id
                   AND   rrl.id                                              = rrs.line_id )
        OR EXISTS --20190802
                  (SELECT 1                           --check whether any NO revenue schedules exist for current period
                   FROM  rpro_cust_rc_schd rcrs
                   WHERE rcrs.prd_id = p_run_prd_id
-                  AND   rrl.rc_id   = rcrs.rc_id
+                --AND   rrl.rc_id   = rcrs.rc_id
                   AND   rrl.id      = rcrs.line_id
                  )
         );
@@ -1710,29 +1747,30 @@ AS
                                  WHERE  1=1
                                  AND    (   (rpro_rc_schd_pkg.get_schd_type_flag(indicators) = 'R' AND rpro_rc_schd_pkg.get_initial_entry_flag(indicators)    <>'Y')
                                          OR (rpro_rc_schd_pkg.get_schd_type_flag(indicators) = 'A' AND rpro_rc_schd_pkg.get_initial_rep_entry_flag(indicators)<>'Y'))
-                                 AND    rrs.rc_id      = :1
-                                 AND    rrs.line_id    = :2
-                                  AND    rrs.sec_atr_val = :3)';  --MS20201207
+                               --AND    rrs.rc_id      = :1
+                                 AND    rrs.line_id    = :1
+                                 AND    rrs.sec_atr_val = :2)';  --MS20201207
            
                  write_log('Log: Inserting Revenue Schedules  l_sql_stmt:'||l_sql_stmt);
            
                  /*Inserting Revenue schedules*/
-                 EXECUTE IMMEDIATE l_sql_stmt USING   l_rcline(i).rc_id
-                                                    , l_rcline(i).line_id
+                 EXECUTE IMMEDIATE l_sql_stmt USING  -- l_rcline(i).rc_id,
+                                                     l_rcline(i).line_id
                                                     , l_rcline(i).sec_atr_val;   --MS20201207
            
                  l_sql_stmt := 'INSERT INTO ' || g_tab_name ||
                                ' SELECT   *
                                  FROM   rpro_cust_rc_schd rcrs
-                                 WHERE  rcrs.rc_id      = :1
-                                 AND    rcrs.line_id    = :2
-                                 AND    rcrs.sec_atr_val = :3 '; --MS20201207
+                                 WHERE 1 =1 
+                               --AND rcrs.rc_id      = :1 
+                                 AND rcrs.line_id    = :1
+                                 AND    rcrs.sec_atr_val = :2 '; --MS20201207
            
                  write_log('Log: Inserting NO Revenue Schedules :l_sql_stmt:'||l_sql_stmt);
            
                  /*Inserting NO Revenue schedules*/
-                 EXECUTE IMMEDIATE l_sql_stmt USING   l_rcline(i).rc_id
-                                                    , l_rcline(i).line_id
+                 EXECUTE IMMEDIATE l_sql_stmt USING   --l_rcline(i).rc_id,
+                                                     l_rcline(i).line_id
                                                     , l_rcline(i).sec_atr_val;
                  write_log('Log: NO schedules count :'||SQL%ROWCOUNT);
            
